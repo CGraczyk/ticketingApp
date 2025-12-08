@@ -1,4 +1,4 @@
-import { CustomError } from "./custom-error.js";
+import { CustomError } from "./custom-error";
 
 export class DatabaseConnectionError extends CustomError {
   serialzeErrors(): { message: string; field?: string; }[] {
