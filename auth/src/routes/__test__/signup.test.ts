@@ -10,3 +10,69 @@ it("returns a 201 on successul signup", async () => {
     })
     .expect(201);
 });
+
+it("returns a 400 with an invalid email", async () => {
+  return request(app)
+    .post("/api/users/signup")
+    .send({
+      email: "testtest.com",
+      password: "password"
+    })
+    .expect(400);
+});
+
+it("returns a 400 with an invalid password", async () => {
+  return request(app)
+    .post("/api/users/signup")
+    .send({
+      email: "test@test.com",
+      password: "p"
+    })
+    .expect(400);
+});
+
+it("returns a 400 with missing input", async () => {
+  await request(app)
+    .post("/api/users/signup")
+    .send({
+      email: "test@test.com",
+    })
+    .expect(400);
+
+  await request(app)
+    .post("/api/users/signup")
+    .send({ password: "password"})
+    .expect(400);
+});
+
+it("disallows duplicate emails", async () => {
+  await request(app)
+    .post("/api/users/signup")
+    .send({
+      email: "test@test.com",
+      password: "password"
+    })
+    .expect(201);
+
+  await request(app)
+    .post("/api/users/signup")
+    .send({
+      email: "test@test.com",
+      password: "password"
+    })
+    .expect(400);
+});
+
+it("sets a cookie after sucessful signup", async () => {
+  const response = await request(app)
+    .post("/api/users/signup")
+    .send({
+      email: "test@test.com",
+      password: "password"
+    })
+    .expect(201);
+
+  // This fails because app.ts sets cookieSession({ secure: true}) which only sets cookies via https
+  // so we first change this setting for testing via secure: process.env.NODE_ENV !== "test".
+  expect(response.get("Set-Cookie")).toBeDefined()
+});
