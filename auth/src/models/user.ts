@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { Password } from "../services/password.js"
+import { Password } from "../services/password"
 
 // An interfadce that describes the properties
 // that are required to create a new User
