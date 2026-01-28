@@ -5,6 +5,8 @@ yarn-error.log
 dist/
 .env
 .next
+*.env
+*.old*
 
 # Readt
 /build

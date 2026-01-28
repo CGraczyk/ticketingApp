@@ -3,8 +3,7 @@ import jwt from "jsonwebtoken";
 
 import type {Request, Response } from "express";
 import { body } from "express-validator";
-import { validateRequest } from "../middlewares/validate-request";
-import { BadRequestError } from "../errors/bad-request-error";
+import { validateRequest, BadRequestError } from "@ccgtickets/common";
 import { User } from "../models/user";
 import { Password } from "../services/password";
 
