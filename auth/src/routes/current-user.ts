@@ -1,7 +1,6 @@
 import express from "express";
 
-import { currentUser } from "../middlewares/current-user";
-import { requireAuth } from "../middlewares/require-auth";
+import { currentUser } from "@ccgtickets/common";
 
 const router = express.Router();
 
