@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "name": "ticketingapp",
+  "scripts": {
+    "bump": "npm run bump:common",
+    "bump:common": "node ./scripts/bump-dependency.mjs"
+  }
+}
