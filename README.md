@@ -1,119 +1,153 @@
-# TicketingApp 🎟️
+# TicketingApp
 
-Microservice-based example application for auctioning tickets to demonstrate microservice boundaries and ownership, practice kubernetes-first local development and show production-style concerns (ingress, secrets, authentication, JWT)
+Microservices portfolio project for ticketing workflows, built with Node.js, TypeScript, Next.js, MongoDB, Kubernetes, and Skaffold.
 
-> **Project status:** In active development. Documentation is maintained as the system evolves; some services/components may be added or renamed over the coming weeks.
+## What this repo demonstrates
 
-## What’s implemented so far
+- Service boundaries (`auth`, `tickets`, `client`) behind Kubernetes ingress.
+- Shared backend contracts and middleware via published package `@ccgtickets/common`.
+- Local cloud-style development loop with `skaffold dev` and live image rebuilds.
 
-This section will be updated throughout development:
+## Architecture
 
-### Features
+- `client` (Next.js): UI, auth forms, session-aware header.
+- `auth` (Express + MongoDB): signup, signin, signout, current user.
+- `tickets` (Express + MongoDB): create ticket, fetch ticket by id.
+- `common` (Git submodule): shared errors, auth middleware, validation middleware.
+- `infra/k8s`: deployments/services for all components plus ingress routing.
 
-- Authentication using MongoDB for SignUp with basic email-format and password requirements
-- Basic authentication tests for automated tests.
-- React front-end skeleton to showcase client-side input/output logic
+Ingress routes:
 
-### DevOps
+- `/` -> `client-srv:3000`
+- `/api/users/*` -> `auth-srv:3000`
 
-- Kubernetes local dev setup (Docker Desktop Kubernetes)
-- Ingress-NGINX routing into the cluster
-- JWT secret management via Kubernetes Secrets
-- Skaffold workflow for rebuild/redeploy on code changes
+## Codebase overview
 
-## Architecture at a glance
+- [client](/ticketingApp/client): Next.js pages and UI components.
+- [auth](/ticketingApp/auth): identity service (`/api/users/*`).
+- [tickets](/ticketingApp/tickets): ticket service (`/api/tickets*`).
+- [common](/ticketingApp/common): shared package source (`@ccgtickets/common`).
+- [infra/k8s](/ticketingApp/infra/k8s): Kubernetes manifests.
+- [skaffold.yaml](/ticketingApp/skaffold.yaml): local build/deploy pipeline.
+- [scripts/install-all.mjs](/ticketingApp/scripts/install-all.mjs): root dependency installer.
 
-TicketingApp is composed of independently deployed services running in a local Kubernetes cluster that can alternatively be deployed to the cloud.
-An NGINX ingress controller acts as the single entry point, routing traffic based on request paths.
-The client (Next.js) is served at `/`, while authentication requests under `/api/users/*` are routed to the auth service.
-Each service owns its own runtime and dependencies.
-Authentication is handled via JWTs signed with a shared secret injected through Kubernetes Secrets.
-Skaffold manages the local development loop by rebuilding images and redeploying services on file changes.
+## API surface (current)
 
-### Authentication flow (current)
+Auth service:
 
-1. User submits credentials via the client.
-2. Client sends request to `POST /api/users/*`.
-3. Auth service validates input and issues a JWT.
-4. JWT is signed using `JWT_KEY` from Kubernetes Secrets.
-5. Token is stored in a cookie and sent with subsequent requests.
-6. Services validate JWT signature to trust user identity.
+- `POST /api/users/signup`
+- `POST /api/users/signin`
+- `POST /api/users/signout`
+- `GET /api/users/currentuser`
 
-## Local development
+Tickets service:
+
+- `POST /api/tickets` (requires auth)
+- `GET /api/tickets/:id`
+
+## Setup (WSL-first, executable)
 
 ### Prerequisites
 
-- Docker Desktop (Kubernetes enabled)
-- kubectl
-- skaffold
+- Node.js 20+ and npm
+- Docker Desktop with Kubernetes enabled
+- `kubectl`
+- `skaffold`
+- Git access to `CGraczyk/ticketingApp`
+- Git access to `CGraczyk/ccgtickets-common` (submodule)
 
-### 1) Install ingress-nginx
+### 1. Clone
 
-1. Run at root:
-   `kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.14.1/deploy/static/provider/cloud/deploy.yaml`
-2. Verify ingress-nginx controller pods are _Running_:
-   `kubectl get pods -n ingress-nginx`
-
-### 2) JWT secret
-
-**NOTE:** Not recommended, only do this for testing.
-
-1. Create a local env file at the root:
-
+```bash
+git clone git@github.com:CGraczyk/ticketingApp.git
+cd ticketingApp
 ```
-printf "JWT_KEY=ENTER_YOUR_OWN_KEY_VALUE" > .kubectl.env
+
+If you want the shared package common source:
+
+```bash
+git submodule update --init --recursive common
+```
+
+### 2. Install everything from root
+
+Run once at repository root:
+
+```bash
+npm install
+```
+
+Root `postinstall` installs dependencies for `client`, `auth`, `tickets`, and `common` (when `common/package.json` is present).
+
+### 3. Install ingress controller
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.14.1/deploy/static/provider/cloud/deploy.yaml
+kubectl get pods -n ingress-nginx
+```
+
+Continue only after ingress controller pods are `Running`.
+
+### 4. Create JWT secret
+
+WSL/bash:
+
+```bash
+printf "JWT_KEY=replace_with_a_long_random_value\n" > .kubectl.env
+kubectl create secret generic jwt-secret --from-env-file=.kubectl.env
+kubectl get secret jwt-secret
+```
+
+If secret already exists:
+
+```bash
+kubectl delete secret jwt-secret
 kubectl create secret generic jwt-secret --from-env-file=.kubectl.env
 ```
 
-2. Verify _jwt-secret_ exists:
-   `kubectl get secret jwt-secret`
+### 5. Add local hostname mapping
 
-### 3) Access the app
+Add this line:
 
-1. Map the hostname (example: `ticketing.dev`) by adding `127.0.0.1 ticketing.dev` to:
+```text
+127.0.0.1 ticketing.dev
+```
 
-- macOS/Linux: edit `/etc/hosts`
-- Windows: edit `C:\Windows\System32\drivers\etc\hosts`
+- Windows hosts file: `C:\Windows\System32\drivers\etc\hosts`
+- Linux/macOS/WSL hosts file: `/etc/hosts`
 
-2. Start the stack with Skaffold
-   `skaffold dev --no-prune=false --cache-artifacts=false`
+If you browse from Windows, update Windows hosts file.
 
-3. Open `https://ticketing.dev/` in your browser.
+### 6. Start the full stack
 
-## Key concepts (why)
+```bash
+skaffold dev --no-prune=false --cache-artifacts=false
+```
 
-- **Ingress-NGINX:** routes `/` → `client-srv:3000` and `/api/users/*` → `auth-srv:3000` (see `infra/k8s/ingress-srv.yaml`).
-- **JWT Secret:** shared signing key (`JWT_KEY`) used by services to validate auth tokens.
-- **Skaffold:** rebuilds images + redeploys on file changes for tight local dev loop.
+Open `http://ticketing.dev`.
 
-## Routes (local)
+### 7. Quick verification
 
-- `GET /` → `client-srv`
-- `/api/users/*` → `auth-srv`
-  Host: `ticketing.dev`
+- Home page loads.
+- Create account at `/auth/signup`.
+- Sign in/out works.
+- `GET /api/users/currentuser` returns current user when authenticated.
 
-## Services (current)
+## Development commands
 
-- **client** (Next.js) — UI at `/`
-- **auth** (Express + MongoDB) — auth API under `/api/users/*`
-- **common** (`@ccgtickets/common`) — shared middleware/types published to npm
+- Root dependency sync: `npm install`
+- Refresh `@ccgtickets/common` in services: `npm run bump`
+- Auth tests: `cd auth && npm test`
+- Tickets tests: `cd tickets && npm test`
 
-## Shared library (@ccgtickets/common)
+## Shared package flow
 
-Published npm package used by services for shared errors/middleware/types.
-Version bumps are handled via `npm run pub` in `/common`.
-For more detail, look into `/common/package.json` under `"scripts"`.
+- `auth` and `tickets` consume published `@ccgtickets/common`.
+- Submodule source is in [common](/ticketingApp/common).
+- Publish from `common` with `npm run pub`, then from root run `npm run bump`.
 
 ## Troubleshooting
 
-- Ingress not working: `kubectl get pods -n ingress-nginx` and wait until all are `Running`.
-- Host not resolving: confirm `ticketing.dev` entry in hosts file.
-- Stale images: restart `skaffold dev` or run `skaffold dev --cache-artifacts=false`.
-
-## Roadmap / planned additions
-
-- [ ] Service list & responsibilities
-- [ ] Final Auth flow documentation
-- [ ] Complete Architecture diagram
-- [ ] CI/CD pipeline notes
-- [ ] Observability (logs/metrics/tracing)
+- Service crashes at boot: confirm `jwt-secret` exists and Mongo pods are running.
+- `ticketing.dev` not resolving: fix hosts entry and flush DNS if needed.
+- Ingress not routing: verify ingress-nginx pods are `Running` in namespace `ingress-nginx`.

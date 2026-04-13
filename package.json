@@ -2,6 +2,8 @@
   "private": true,
   "name": "ticketingapp",
   "scripts": {
+    "install:all": "node ./scripts/install-all.mjs",
+    "postinstall": "npm run install:all",
     "bump": "npm run bump:common",
     "bump:common": "node ./scripts/bump-dependency.mjs"
   }
