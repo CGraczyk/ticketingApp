@@ -90,10 +90,10 @@ Continue only after ingress controller pods are `Running`.
 
 ### 4. Create JWT secret
 
-WSL/bash:
+Bash:
 
 ```bash
-printf "JWT_KEY=replace_with_a_long_random_value\n" > .kubectl.env
+echo "JWT_KEY=replace_with_a_long_random_value" > .kubectl.env
 kubectl create secret generic jwt-secret --from-env-file=.kubectl.env
 kubectl get secret jwt-secret
 ```
