@@ -8,6 +8,7 @@ import express from "express";
 import { createTicketRouter } from "./routes/new";
 import { showTicketRouter } from "./routes/show";
 import { indexTicketRouter } from "./routes/index";
+import { updateTicketRouter } from "./routes/update";
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use(currentUser); // set after CookieSession so req.session is set properly
 app.use(createTicketRouter);
 app.use(indexTicketRouter);
 app.use(showTicketRouter);
+app.use(updateTicketRouter);
 
 app.all("*", async (req, res) => {
   throw new NotFoundError();
