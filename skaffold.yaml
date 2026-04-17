@@ -10,7 +10,7 @@ build:
     - image: chriscrossington/auth
       context: auth
       docker:
-        dockerfile: Dockerfile
+        dockerfile: dockerfile
       sync:
         manual:
         - src: "src/***/*.ts"
@@ -18,8 +18,16 @@ build:
     - image: chriscrossington/client
       context: client
       docker:
-        dockerfile: Dockerfile
+        dockerfile: dockerfile
       sync:
         manual:
         - src: "***/*.ts"
+          dest: .
+    - image: chriscrossington/tickets
+      context: tickets
+      docker:
+        dockerfile: dockerfile
+      sync:
+        manual:
+        - src: "src/***/*.ts"
           dest: .
