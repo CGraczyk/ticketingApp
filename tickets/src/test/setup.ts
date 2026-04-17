@@ -9,6 +9,9 @@ declare global {
   var signin: () => string[];
 }
 
+// Create mock nats client object for the entire test suite.
+jest.mock("../nats-wrapper");
+
 let mongo: any;
 beforeAll(async () => {
   process.env.JWT_KEY = "sdffaasdf";
@@ -19,6 +22,9 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  // Ensure jest mocks are clean in each test.
+  jest.clearAllMocks();
+
   if (mongoose.connection.db) {
     const collections = await mongoose.connection.db.collections();
 

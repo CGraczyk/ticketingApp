@@ -151,3 +151,20 @@ Open `http://ticketing.dev`.
 - Service crashes at boot: confirm `jwt-secret` exists and Mongo pods are running.
 - `ticketing.dev` not resolving: fix hosts entry and flush DNS if needed.
 - Ingress not routing: verify ingress-nginx pods are `Running` in namespace `ingress-nginx`.
+
+
+
+## NATS Streaming Server
+just to learn, should be kafka instead for prod.
+
+Subscription based - services subscribe to NATS Streaming Channel.
+Publish event to "ticket:updated" channel, sent to services listening to "ticket:updated" channel.
+
+Old storage paradigm: Store all events, so downtime can be recovered from the storage, same for new services.
+
+NATS paradigm: Similar but better: Stored as flat files or Database (Postgres DB / MySQL) as well as memory.
+
+### listener class
+data type depending on channel selection.
+putting the event bus implement nats into common is super necessary to avoid typos while coding etc (the whole work is so that typescript catches code errors early and unifies data contracts.)
+Crosslanguage support with JSON SChema, Protobuf or Apache Avro.

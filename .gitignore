@@ -11,6 +11,7 @@ dist/
 # Readt
 /build
 /.cache
+/images
 
 # Os files
 .DS_Store
@@ -21,3 +22,6 @@ Thumbs.db
 
 # Codex
 .codex
+
+# Pi
+.pi/
