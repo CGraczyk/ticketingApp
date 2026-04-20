@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const projects = ["client", "auth", "tickets", "common"];
+const projects = ["client", "auth", "tickets", "orders", "common"];
 
 function runNpmInstall(projectDir) {
   const direct = spawnSync("npm", ["install"], {

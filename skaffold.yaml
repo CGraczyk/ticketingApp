@@ -31,3 +31,11 @@ build:
         manual:
         - src: "src/***/*.ts"
           dest: .
+    - image: chriscrossington/orders
+      context: orders
+      docker:
+        dockerfile: dockerfile
+      sync:
+        manual:
+        - src: "src/***/*.ts"
+          dest: .
