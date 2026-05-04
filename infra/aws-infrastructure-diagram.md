@@ -1,75 +1,48 @@
 # AWS Infrastructure Diagram
 
-Ground truth for the current AWS demo created from `infra/aws/terraform/` and bootstrapped by `infra/aws/scripts/k3s-bootstrap.sh`.
+Abstract view of the current AWS demo deployment.
 
 ```mermaid
-flowchart TB
-  subgraph Local["Developer laptop"]
-    TF["terraform CLI"]
-    Docker["docker build / push"]
-    Kubectl["kubectl using infra/aws/terraform/k3s.yaml"]
-    SSH["ssh ec2-user"]
-    Browser["Browser"]
-  end
+flowchart TD
+  Laptop["Developer laptop\nTerraform / Docker / kubectl"]
+  Browser["Browser"]
+  DockerHub[("Docker Hub\napp images")]
 
-  DockerHub[("Docker Hub\nchriscrossington/*:latest")]
-  Internet["Internet"]
-
-  Docker -->|push images| DockerHub
-  Browser -->|HTTP :80| Internet
-  SSH -->|SSH :22| Internet
-  Kubectl -->|Kubernetes API :6443| Internet
-
-  subgraph AWS["AWS account - eu-central-1"]
-    AWSApi["AWS APIs"]
-
-    subgraph VPC["VPC ticketing-vpc\n10.0.0.0/24"]
+  subgraph AWS["AWS eu-central-1"]
+    subgraph VPC["VPC 10.0.0.0/24"]
       IGW["Internet Gateway"]
-      RT["Public route table\n0.0.0.0/0 -> IGW"]
-      SG["Security group ticketing-ec2-sg\n22 from home IP\n6443 from home IP\n80 from anywhere\negress all"]
 
-      subgraph PublicA["Public subnet A\n10.0.0.0/26"]
-        EC2["EC2 ticketing-dev-ec2\nt3.medium\nAmazon Linux 2023\nauto public IPv4"]
+      subgraph PublicSubnets["Public subnets"]
+        EC2["EC2 t3.medium\nAmazon Linux 2023\nk3s cluster"]
+        Spare["Subnet B\nunused for now"]
       end
 
-      subgraph PublicB["Public subnet B\n10.0.0.64/26"]
-        Reserved["No workload yet"]
-      end
+      SG["Security group\n80 public\n22 + 6443 home IP only"]
     end
 
-    KeyPair["EC2 key pair\n~/.ssh/id_ed25519.pub"]
-    IAM["IAM instance profile\nECR read-only\nSSM managed instance"]
+    IAM["EC2 IAM role\nSSM + ECR read-only"]
   end
 
-  TF -. creates and updates .-> AWSApi
-  AWSApi -. manages .-> VPC
-  AWSApi -. manages .-> KeyPair
-  AWSApi -. manages .-> IAM
-  AWSApi -. manages .-> EC2
+  Laptop -->|terraform apply| AWS
+  Laptop -->|docker push| DockerHub
+  Laptop -->|kubectl :6443 / ssh :22| SG
+  Browser -->|HTTP :80| IGW
 
-  Internet --> IGW --> RT --> SG --> EC2
-  EC2 -. uses .-> KeyPair
-  EC2 -. assumes .-> IAM
+  IGW --> SG --> EC2
+  IAM -. attached .-> EC2
+  DockerHub -->|image pulls| EC2
 
-  subgraph Runtime["Inside the EC2 instance"]
-    CloudInit["cloud-init user-data-k3s.sh"]
-    K3S["k3s server\nTraefik disabled"]
-    Containerd["containerd image runtime"]
-    ServiceLB["k3s ServiceLB\nhost ports 80/443"]
-    IngressNginx["ingress-nginx"]
-    Ticketing["ticketing namespace\nclient auth tickets mongo nats"]
+  subgraph K3S["Inside EC2 / k3s"]
+    Ingress["ingress-nginx"]
+    App["ticketing app pods\nclient / auth / tickets\nmongo / nats"]
+    Ingress --> App
   end
 
-  EC2 --> CloudInit --> K3S
-  K3S --> Containerd
-  K3S --> ServiceLB --> IngressNginx --> Ticketing
-  DockerHub -->|pull images| Containerd
+  EC2 --> K3S
 ```
 
-## Key points
+## Notes
 
-- Terraform creates AWS infrastructure and installs k3s through EC2 user data.
-- The bootstrap script installs ingress-nginx and applies Kubernetes manifests.
-- There is no AWS load balancer; k3s ServiceLB exposes ingress-nginx on the EC2 host.
-- There is no NAT Gateway, ALB, Route 53, ACM, RDS, or ECR repository yet.
-- Public HTTP is used for the demo; app manifests set `COOKIE_SECURE=false`.
+- Terraform owns AWS infrastructure; Kubernetes manifests are applied after k3s is ready.
+- There is no AWS Load Balancer yet; HTTP enters through the EC2 public IP.
+- No NAT Gateway, RDS, Route 53, ACM, or ECR repositories are used yet.
