@@ -1,61 +1,60 @@
 # Kubernetes Infrastructure Diagram
 
-Logical Kubernetes environment used by local Docker Desktop and AWS k3s.
+Ground truth for the Kubernetes app shape. Local Docker Desktop uses `infra/k8s/`; AWS k3s uses `infra/aws/k3s-mirror/`.
 
 ```mermaid
-flowchart TD
-  User[Browser]
-  Images[Container images\nlocal Skaffold or Docker Hub]
+flowchart TB
+  User["Browser"]
+  Images[("Container images\nlocal Skaffold or Docker Hub")]
 
-  subgraph Cluster[Kubernetes cluster]
-    subgraph IngressNS[namespace: ingress-nginx]
-      IngressController[ingress-nginx controller]
-      IngressSvc[ingress-nginx-controller Service]
+  subgraph Cluster["Kubernetes cluster"]
+    subgraph IngressNS["Namespace: ingress-nginx"]
+      IngressSvc["Service\ningress-nginx-controller\n80 / 443"]
+      IngressPod["Pod / Deployment\ningress-nginx-controller"]
     end
 
-    subgraph TicketingNS[namespace: ticketing in AWS\ndefault namespace locally]
-      Ingress[Ingress: ingress-service]
-      JwtSecret[Secret: jwt-secret]
+    subgraph AppNS["App namespace\nlocal: default\nAWS: ticketing"]
+      AppIngress["Ingress\ningress-service"]
+      JwtSecret["Secret\njwt-secret"]
 
-      ClientDep[Deployment: client-depl\nimage: chriscrossington/client]
-      ClientSvc[Service: client-srv :3000]
+      ClientSvc["Service\nclient-srv :3000"]
+      ClientPod["Deployment / Pod\nclient-depl\nchriscrossington/client"]
 
-      AuthDep[Deployment: auth-depl\nimage: chriscrossington/auth]
-      AuthSvc[Service: auth-srv :3000]
-      AuthMongoDep[Deployment: auth-mongo-depl\nimage: mongo]
-      AuthMongoSvc[Service: auth-mongo-srv :27017]
+      AuthSvc["Service\nauth-srv :3000"]
+      AuthPod["Deployment / Pod\nauth-depl\nchriscrossington/auth"]
+      AuthMongoSvc["Service\nauth-mongo-srv :27017"]
+      AuthMongoPod["Deployment / Pod\nauth-mongo-depl\nmongo"]
 
-      TicketsDep[Deployment: tickets-depl\nimage: chriscrossington/tickets]
-      TicketsSvc[Service: tickets-srv :3000]
-      TicketsMongoDep[Deployment: tickets-mongo-depl\nimage: mongo]
-      TicketsMongoSvc[Service: tickets-mongo-srv :27017]
+      TicketsSvc["Service\ntickets-srv :3000"]
+      TicketsPod["Deployment / Pod\ntickets-depl\nchriscrossington/tickets"]
+      TicketsMongoSvc["Service\ntickets-mongo-srv :27017"]
+      TicketsMongoPod["Deployment / Pod\ntickets-mongo-depl\nmongo"]
 
-      NatsDep[Deployment: nats-depl\nimage: nats-streaming]
-      NatsSvc[Service: nats-srv :4222/:8222]
+      NatsSvc["Service\nnats-srv :4222 / :8222"]
+      NatsPod["Deployment / Pod\nnats-depl\nnats-streaming"]
     end
   end
 
   User -->|HTTP| IngressSvc
-  IngressSvc --> IngressController
-  IngressController --> Ingress
+  IngressSvc --> IngressPod
+  IngressPod --> AppIngress
 
-  Ingress -->|/| ClientSvc
-  Ingress -->|/api/users| AuthSvc
-  Ingress -->|/api/tickets| TicketsSvc
+  AppIngress -->|"/"| ClientSvc --> ClientPod
+  AppIngress -->|"/api/users"| AuthSvc --> AuthPod
+  AppIngress -->|"/api/tickets"| TicketsSvc --> TicketsPod
 
-  ClientSvc --> ClientDep
-  AuthSvc --> AuthDep
-  TicketsSvc --> TicketsDep
+  ClientPod -. "server-side API calls use ingress-nginx service DNS" .-> IngressSvc
 
-  AuthDep --> AuthMongoSvc --> AuthMongoDep
-  TicketsDep --> TicketsMongoSvc --> TicketsMongoDep
-  TicketsDep --> NatsSvc --> NatsDep
+  JwtSecret -. "JWT_KEY env" .-> AuthPod
+  JwtSecret -. "JWT_KEY env" .-> TicketsPod
 
-  JwtSecret -. JWT_KEY .-> AuthDep
-  JwtSecret -. JWT_KEY .-> TicketsDep
-  Images --> ClientDep
-  Images --> AuthDep
-  Images --> TicketsDep
+  AuthPod -->|MONGO_URI| AuthMongoSvc --> AuthMongoPod
+  TicketsPod -->|MONGO_URI| TicketsMongoSvc --> TicketsMongoPod
+  TicketsPod -->|NATS_URL| NatsSvc --> NatsPod
+
+  Images -. pulled or loaded .-> ClientPod
+  Images -. pulled or loaded .-> AuthPod
+  Images -. pulled or loaded .-> TicketsPod
 ```
 
 ## Environment differences
@@ -63,7 +62,17 @@ flowchart TD
 | Concern | Local Docker Desktop | AWS k3s mirror |
 | --- | --- | --- |
 | Manifests | `infra/k8s/` | `infra/aws/k3s-mirror/` |
-| Images | local Skaffold build | Docker Hub `:latest` |
+| Image source | local Skaffold build | Docker Hub `:latest` |
 | Namespace | default | `ticketing` |
-| Ingress host | `ticketing.dev` | no host; EC2 public IP |
-| Cookie security | normal app default | `COOKIE_SECURE=false` for HTTP demo |
+| Public entry | `http://ticketing.dev` | `http://EC2_PUBLIC_IP` |
+| Ingress host rule | `ticketing.dev` | no host rule |
+| Cookie security | secure by default | `COOKIE_SECURE=false` for HTTP demo |
+| Databases | MongoDB pods | MongoDB pods |
+| Event bus | NATS Streaming pod | NATS Streaming pod |
+
+## Key points
+
+- Ingress routes HTTP to Services; Services select Pods created by Deployments.
+- Auth and tickets both read `JWT_KEY` from `jwt-secret`.
+- MongoDB and NATS are in-cluster demo dependencies, not managed cloud services.
+- No persistent volumes are configured for MongoDB in this demo.
