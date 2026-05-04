@@ -17,7 +17,7 @@ app.use(json());
 app.use(
   cookieSession({
     signed: false,
-    secure: process.env.NODE_ENV !== "test" // See src/routes/__test__/signup.test.ts
+    secure: process.env.COOKIE_SECURE !== "false" && process.env.NODE_ENV !== "test" // See src/routes/__test__/signup.test.ts
   })
 );
 

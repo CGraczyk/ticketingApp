@@ -18,6 +18,16 @@ resource "aws_vpc_security_group_ingress_rule" "ssh_from_home" {
   to_port     = 22
 }
 
+resource "aws_vpc_security_group_ingress_rule" "kubernetes_api_from_home" {
+  security_group_id = aws_security_group.ec2.id
+  description       = "Allow Kubernetes API from home IP"
+
+  cidr_ipv4   = "92.211.1.206/32"
+  from_port   = 6443
+  ip_protocol = "tcp"
+  to_port     = 6443
+}
+
 resource "aws_vpc_security_group_ingress_rule" "http_from_anywhere" {
   security_group_id = aws_security_group.ec2.id
   description       = "Allow HTTP from anywhere"

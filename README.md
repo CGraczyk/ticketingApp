@@ -14,12 +14,14 @@ Microservices portfolio project for ticketing workflows, built with Node.js, Typ
 - `auth` (Express + MongoDB): signup, signin, signout, current user.
 - `tickets` (Express + MongoDB): create ticket, fetch ticket by id.
 - `common` (Git submodule): shared errors, auth middleware, validation middleware.
-- `infra/k8s`: deployments/services for all components plus ingress routing.
+- `infra/k8s`: local Docker Desktop Kubernetes manifests.
+- `infra/aws`: AWS EC2 + k3s deployment mirror and Terraform infrastructure.
 
 Ingress routes:
 
 - `/` -> `client-srv:3000`
 - `/api/users/*` -> `auth-srv:3000`
+- `/api/tickets/*` -> `tickets-srv:3000`
 
 ## Codebase overview
 
@@ -27,7 +29,8 @@ Ingress routes:
 - [auth](/ticketingApp/auth): identity service (`/api/users/*`).
 - [tickets](/ticketingApp/tickets): ticket service (`/api/tickets*`).
 - [common](/ticketingApp/common): shared package source (`@ccgtickets/common`).
-- [infra/k8s](/ticketingApp/infra/k8s): Kubernetes manifests.
+- [infra/k8s](/ticketingApp/infra/k8s): local Kubernetes manifests.
+- [infra/aws](/ticketingApp/infra/aws): AWS/k3s deployment files.
 - [skaffold.yaml](/ticketingApp/skaffold.yaml): local build/deploy pipeline.
 - [scripts/install-all.mjs](/ticketingApp/scripts/install-all.mjs): root dependency installer.
 
@@ -139,6 +142,45 @@ Open `http://ticketing.dev`.
 - Refresh `@ccgtickets/common` in services: `npm run bump`
 - Auth tests: `cd auth && npm test`
 - Tickets tests: `cd tickets && npm test`
+
+## Docker Hub image publishing
+
+For the first AWS/k3s demo, publish public Docker Hub images with the `latest` tag:
+
+```bash
+docker login
+
+docker build -t chriscrossington/auth:latest -f auth/dockerfile auth
+docker push chriscrossington/auth:latest
+
+docker build -t chriscrossington/tickets:latest -f tickets/dockerfile tickets
+docker push chriscrossington/tickets:latest
+
+docker build -t chriscrossington/client:latest -f client/dockerfile client
+docker push chriscrossington/client:latest
+```
+
+Remote Kubernetes manifests can then use:
+
+```text
+chriscrossington/auth:latest
+chriscrossington/tickets:latest
+chriscrossington/client:latest
+```
+
+Note: `latest` is convenient for demos but less reproducible than immutable tags.
+
+## AWS/k3s demo deployment
+
+AWS deployment docs live in [`infra/aws/README.md`](./infra/aws/README.md).
+
+Current cloud demo:
+
+- Terraform creates EC2 + k3s in `eu-central-1`.
+- Docker Hub stores app images.
+- `infra/aws/scripts/k3s-bootstrap.sh` installs ingress-nginx and applies `infra/aws/k3s-mirror/`.
+- App runs at `http://EC2_PUBLIC_IP`.
+- AWS manifests set `COOKIE_SECURE=false` because the demo uses HTTP, not HTTPS.
 
 ## Shared package flow
 
