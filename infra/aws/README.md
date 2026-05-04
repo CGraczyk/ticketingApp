@@ -86,6 +86,24 @@ Browser:
 http://EC2_PUBLIC_IP
 ```
 
+## Cost
+
+Current running cost is mainly:
+
+- EC2 `t3.medium`: about `$0.045-$0.05/hour`
+- EBS root volume: small storage cost
+- Public IPv4 address: about `$0.005/hour`
+
+Approximate total while running:
+
+```text
+$0.05-$0.06/hour
+$1.20-$1.50/day
+$35-$45/month if left running
+```
+
+VPC, subnets, route table, security group, internet gateway, IAM role, and key pair are free/near-free. No NAT Gateway, ALB, RDS, Route 53, or ECR repos are used yet.
+
 ## Teardown
 
 ```bash
