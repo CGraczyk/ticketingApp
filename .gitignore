@@ -25,3 +25,17 @@ Thumbs.db
 
 # Pi
 .pi/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+*.tfvars
+*.tfvars.json
+crash.log
+crash.*.log
+.terraform.lock.hcl
+k3s.yaml
+Plan.md
